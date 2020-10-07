@@ -53,34 +53,97 @@ popular_items <-
   mutate(rank = min_rank(desc(n))) %>%
   filter(rank < 4) %>%
   arrange(aisle, rank)
+
+popular_items
 ```
 
 Another table for Pink Lady Apples versus Coffee Ice Cream
-```{r}
+```{r message=FALSE}
 apples_icecream <-
   instacart %>%
   filter(product_name == "Pink Lady Apples" | product_name == "Coffee Ice Cream") %>%
   group_by(product_name, order_dow) %>%
   summarize(mean_hour = mean(order_hour_of_day)) %>%
   pivot_wider(names_from = order_dow, values_from = mean_hour)
-  # deliberately untidy the data set -- long to wide format
 
+apples_icecream # deliberately untidy the data set -- long to wide format
 ```
 
 
 
 ## Problem 2
-```{r}
+```{r message=FALSE}
 accel_df <- 
   read_csv("./accel_data.csv") %>%
-  pivot_longer(4:1443, names_to = "activity", values_to = "activity_count",
+  pivot_longer(4:1443, names_to = "activity", values_to = "activity_minutes",
                names_prefix = "activity.") %>%
-  mutate(weekend = if_else(day == "Saturday" |
-                             day == "Sunday", 1, 0), # weekday vs weekend
-         activity = as.numeric(activity)) #changing chr to numeric class
+  mutate(weekend_weekday = if_else(day == "Saturday" | 
+                                     day == "Sunday", "Weekend", "Weekday"),
+         activity = as.numeric(activity),
+         day = factor(day)) # changing chr to numeric class
+
+days_of_week <- tibble(day_num = 1:7,
+                       day_name = c("Monday", "Tuesday", "Wednesday", "Thursday",
+                                    "Friday", "Saturday", "Sunday"))
+
+accel_df <-
+  left_join(accel_df, days_of_week, by = c("day" = "day_name"))
 ```
 
-After cleaning the `accel_data.csv` we have `r nrow(accel_df)` observations in the data set and `r ncol(accel_df)` variables.
+After cleaning the `accel_data.csv` we have `r nrow(accel_df)` observations in the data set and `r ncol(accel_df)` variables. I also noticed that the days of the week in the dataset are out of order, so Monday was made the first day of the week, while Sunday was made the last day of the week.
+
+#### Aggregating across minutes to create a total activity variable for each day, and create a table showing these totals
+
+```{r message=FALSE}
+accel_day_df <-
+  accel_df %>%
+  group_by(week, day_num, day) %>%
+  summarize(total_day_activity = sum(activity_minutes))
+
+accel_day_df # printing out the table; 35 observations
+```
+
+* Looking at the table I created, it seems like daily activity generally increases throughout the weekdays especially looking at weeks 1, 2, and 5. There is not as much of this trend in weeks 3 and 4. The lowest total activity in minutes are on a Saturday in weeks 4 and 5. However "apparent" these trends are, it would be of interest to visualize these with a plot or with further descriptive statistics.
+
+#### Single-Panel Plot with 24-hour activity time courses
+```{r}
+# accel_day_plot <-
+#   accel_day_df %>%
+#   group_by(week, day_num) %>%
+#   ggplot(aes(x=day, y=total_day_activity)) + geom_point(aes(color = week))
+```
+
 
 
 ## Problem 3
+```{r}
+data("ny_noaa")
+noaa_df <-
+  ny_noaa %>%
+  separate(date, c("year", "month", "day"), convert = TRUE) %>%
+  mutate(tmax_C = as.numeric(tmax)*10, # changing tenths of degrees C to degrees C
+         tmin_C = as.numeric(tmin)*10,
+         prcp_mm = prcp*10) %>% # changing precipitation tenths of mm to mm
+  select(-tmax, -tmin, -prcp)
+```
+
+After cleaning the `ny_noaa` data set we have `r nrow(noaa_df)` observations in the data set and `r ncol(noaa_df)` variables. The data set contains information for all New York State weather stations from January 1, 1981 to December 31, 2010 with variables for Weather Station ID, precipitation, snowfall, snow depth, and the max and min temperatures. There are quite a bunch of NAs because not every weather station collects all data and may only report a subset of these variables.
+
+```{r message=FALSE}
+snow_count <-
+  noaa_df %>%
+  group_by(snow)%>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+head(snow_count)
+```
+
+* For the `snow` variable for snowfall (mm), the most commonly observed values are 0. This makes sense because it really only snows around the winter time, which would take up approximately one-fourth of the days in the year. Therefore, the other three-fourths of the year, there would be 0 snowfall.
+
+#### Two-panel plot for average max temperature in January and July
+```{r}
+
+```
+
+
