@@ -8,6 +8,22 @@ output: github_document
 ```{r}
 library(tidyverse)
 library(p8105.datasets)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 ## Problem 1 - Instacart data
@@ -107,10 +123,16 @@ accel_day_df # printing out the table; 35 observations
 
 #### Single-Panel Plot with 24-hour activity time courses
 ```{r}
-# accel_day_plot <-
-#   accel_day_df %>%
-#   group_by(week, day_num) %>%
-#   ggplot(aes(x=day, y=total_day_activity)) + geom_point(aes(color = week))
+accel_df %>%
+  group_by(week, day_num) %>%
+  ggplot(aes(x=activity, y=activity_minutes, color=day)) + 
+  geom_line(size = 0.5, alpha=0.5) +
+  labs(
+    title = "24-hour activity time courses colored by day of week",
+    x = "Minute of the Day",
+    y = "Total Activity in Minutes",
+    caption = "PLACEHOLDER change this after correction..."
+  )
 ```
 
 
@@ -121,10 +143,9 @@ data("ny_noaa")
 noaa_df <-
   ny_noaa %>%
   separate(date, c("year", "month", "day"), convert = TRUE) %>%
-  mutate(tmax_C = as.numeric(tmax)*10, # changing tenths of degrees C to degrees C
-         tmin_C = as.numeric(tmin)*10,
-         prcp_mm = prcp*10) %>% # changing precipitation tenths of mm to mm
-  select(-tmax, -tmin, -prcp)
+  mutate(tmax = as.numeric(tmax)/10, # changing tenths of degrees C to degrees C
+         tmin = as.numeric(tmin)/10,
+         prcp = prcp/10) # changing precipitation tenths of mm to mm
 ```
 
 After cleaning the `ny_noaa` data set we have `r nrow(noaa_df)` observations in the data set and `r ncol(noaa_df)` variables. The data set contains information for all New York State weather stations from January 1, 1981 to December 31, 2010 with variables for Weather Station ID, precipitation, snowfall, snow depth, and the max and min temperatures. There are quite a bunch of NAs because not every weather station collects all data and may only report a subset of these variables.
@@ -142,8 +163,64 @@ head(snow_count)
 * For the `snow` variable for snowfall (mm), the most commonly observed values are 0. This makes sense because it really only snows around the winter time, which would take up approximately one-fourth of the days in the year. Therefore, the other three-fourths of the year, there would be 0 snowfall.
 
 #### Two-panel plot for average max temperature in January and July
-```{r}
+```{r message=FALSE}
+jan_july <-
+  noaa_df %>%
+  filter(month %in% c(1,7)) %>% # only January and July
+  mutate(month_name = if_else(month == 1, "January", "July")) %>%
+  group_by(month_name,year) %>%
+  summarize(avg_temp = mean(tmax, na.rm = TRUE)) 
 
+jan_july %>% # wanted to separate both steps of creating table and then plotting
+  ggplot(aes(x=year, y=avg_temp)) + 
+  geom_point(alpha = .5) + 
+  facet_grid(~month_name) +
+  labs(
+    title = "Temperature plot",
+    x = "Year",
+    y = "Average Max Temperature (degrees C)",
+    caption = "From the ny_noaa data set; temperatures from 1981 to 2010."
+  )
 ```
 
+* Plotting the average max temperatures in January and July across the year, it seems like there is more variation in temperatures in January than in July from 1981 to 2010. Just from looking at the two plots, it is difficult to tell whether or not there are any outliers in the data. It also seems like the temperatures are relatively consistent; I would expect an imaginary line going through the data horizontally.
+
+#### Two-panel plot showing (i) `tmax` vs `tmin` and (ii) distribution of snowfall values between 0 and 100 by year
+
+```{r}
+tmax_tmin_plot <-
+  noaa_df %>%
+  drop_na(tmax, tmin) %>%
+  ggplot(aes(x=tmin, y=tmax)) +
+  geom_hex() +
+  labs(
+    title = "Maximum vs Minimum Temperatures (degrees C) from 1981 to 2010",
+    x = "Minimum Temperature",
+    y = "Maximum Temperature",
+    caption = "From the ny_noaa data set; max and min temperatures from 1981 to 2010."
+  ) +
+  theme(legend.text = element_text(angle = 90, vjust=0.5, hjust=0.5))
+
+snowfall_plot <-
+  noaa_df %>%
+  filter(snow > 0 & snow < 100) %>%
+  mutate(year = as.factor(year)) %>%
+  ggplot(aes(x=year, y=snow)) +
+  geom_violin(aes(fill = year), color = "blue", alpha = 0.5) +
+  theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=0.5)) +
+  theme(legend.position = "none")+
+  labs(
+    title = "Distribution of Snowfall Values",
+    x = "Year",
+    y = "Snowfall (mm)",
+    caption = "From the ny_noaa data set; snowfall between 0 and 100 mm."
+  ) 
+
+tmax_tmin_plot
+
+snowfall_plot
+```
+
+* Also make the 2 panel plot
+* Make sure to comment pls don't forget
 
